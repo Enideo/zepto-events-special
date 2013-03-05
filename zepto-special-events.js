@@ -1,4 +1,3 @@
-
 /**
 * Enable special events on Zepto
 * @license Copyright 2013 Enideo. Released under dual MIT and GPL licenses.
@@ -14,9 +13,14 @@ $.event.special = $.event.special || {};
 
 $.fn.originalBind = $.fn.bind;
 
-$.fn.bind = function(eventName, callback){
+$.fn.bind = function(eventName, data, callback){
 
   var specialEvent;
+
+  if( callback == null ){
+    callback = data;
+    data = null;
+  }
 
   /// run special events on Zepto
   if( $.zepto && eventName in $.event.special && $(this)[0] !== document ){
@@ -50,15 +54,15 @@ $.fn.bind = function(eventName, callback){
     }
 
     /// run special events on Zepto
-    specialEvent.setup.apply(this,arguments);
-    $(document).bind(eventName, callback );
+    specialEvent.setup.apply( this, [data] );
+    $(document).bind.apply( $(document), arguments );
 
     return this;
 
   /// run special events on jQuery, and other native events
   }else{
 
-    return this.originalBind(eventName, callback);
+    return this.originalBind.apply(this,arguments);
 
   }
 
