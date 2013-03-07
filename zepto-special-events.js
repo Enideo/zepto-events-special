@@ -1,3 +1,4 @@
+
 /**
 * Enable special events on Zepto
 * @license Copyright 2013 Enideo. Released under dual MIT and GPL licenses.
@@ -5,65 +6,69 @@
 
 /// Place this code before defining the Special Events, but after Zepto
 
-/// CAVEATS
-/// native events not writeable
-/// context (this) on event callback is document, not the event element
-
 $.event.special = $.event.special || {};
 
-$.fn.originalBind = $.fn.bind;
+var bindBeforeSpecialEvents = $.fn.bind;
 
 $.fn.bind = function(eventName, data, callback){
 
-  var specialEvent;
+  var el = this,
+    $this = $(el),
+    specialEvent;
 
   if( callback == null ){
     callback = data;
     data = null;
   }
 
-  /// run special events on Zepto
-  if( $.zepto && eventName in $.event.special && $(this)[0] !== document ){
+  if( $.zepto ){
 
-    specialEvent = $.event.special[eventName];
+    $.each( eventName.split(/\s/), function(i, eventName){
 
-    /// init enable special events on Zepto
-    if( !specialEvent._init ) {
-      specialEvent._init = true;
+      eventName = eventName.split(/\./)[0];
 
-      /// replace the special event handler to add functionality
-      specialEvent.originalHandler = specialEvent.handler;
-      specialEvent.handler = function(){
+      if( (eventName in $.event.special) ){
 
-        /// make event argument writeable, like on jQuery
-        var args = Array.prototype.slice.call(arguments);
-        args[0] = $.extend({},args[0]);
+        specialEvent = $.event.special[eventName];
 
-        /// define the event handle
-        $.event.handle = function(event){
+        /// init enable special events on Zepto
+        if( !specialEvent._init ) {
+          specialEvent._init = true;
 
-          /// make context of trigger the event element
-          var args = Array.prototype.slice.call(arguments),
-            $this = $(args[0].target);
+          /// intercept and replace the special event handler to add functionality
+          specialEvent.originalHandler = specialEvent.handler;
+          specialEvent.handler = function(){
 
-          $this.trigger.apply($this,args);
+            /// make event argument writeable, like on jQuery
+            var args = Array.prototype.slice.call(arguments);
+            args[0] = $.extend({},args[0]);
+
+            /// define the event handle, $.event.dispatch is only for newer versions of jQuery
+            $.event.handle = function(){
+
+              /// make context of trigger the event element
+              var args = Array.prototype.slice.call(arguments),
+                event = args[0],
+                $target = $(event.target);
+
+              $target.trigger.apply( $target, arguments );
+
+            }
+
+            specialEvent.originalHandler.apply(this,args);
+
+          }
         }
 
-        specialEvent.originalHandler.apply(this,args);
+        /// setup special events on Zepto
+        specialEvent.setup.apply( el, [data] );
+
       }
-    }
 
-    /// run special events on Zepto
-    specialEvent.setup.apply( this, [data] );
-    $(document).bind.apply( $(document), arguments );
 
-    return this;
-
-  /// run special events on jQuery, and other native events
-  }else{
-
-    return this.originalBind.apply(this,arguments);
-
+    });
   }
+
+  return bindBeforeSpecialEvents.apply(this,[eventName,callback]);
 
 };
